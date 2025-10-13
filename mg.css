@@ -614,7 +614,7 @@ video {
 .panel.open {
     transform: translateY(0);
     right: 2%;
-    bottom: 3%;
+    bottom: 12%;
 }
 
 .panel header {
