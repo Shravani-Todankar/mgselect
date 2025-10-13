@@ -405,11 +405,49 @@ document.addEventListener('DOMContentLoaded', () => {
         video.addEventListener('timeupdate', onTime);
     }
 
+    // function playModule(mod) {
+    //     activeModule = mod;
+    //     hint.classList.remove('show');
+    //     hide(hotspotsWrap);
+    //     mainText?.classList.remove('show');
+    //     showLoader(true);
+
+    //     // Switch to module video, seek, play to playTo then pause and open info
+    //     video.src = mod.video.src;
+    //     const start = mod.video.playFrom ?? 0;
+    //     const end = mod.video.playTo ?? null;
+
+    //     const onMeta = async () => {
+    //         video.currentTime = Math.min(start, video.duration || start);
+    //         try { await video.play(); } catch (e) { }
+    //         if (end != null) {
+    //             const onTime = () => {
+    //                 if (video.currentTime >= end) {
+    //                     video.pause();
+    //                     video.removeEventListener('timeupdate', onTime);
+    //                     showLoader(false);
+    //                     openPanel(mod.title, mod.info);
+    //                 }
+    //             };
+    //             video.addEventListener('timeupdate', onTime);
+    //         } else {
+    //             // If no end provided, open panel immediately after playback starts
+    //             showLoader(false);
+    //             openPanel(mod.title, mod.info);
+    //         }
+    //     };
+
+    //     if (Number.isFinite(video.duration) && video.duration > 0) { onMeta(); }
+    //     else { video.addEventListener('loadedmetadata', onMeta, { once: true }); }
+    // }
+
     function playModule(mod) {
         activeModule = mod;
         hint.classList.remove('show');
         hide(hotspotsWrap);
         mainText?.classList.remove('show');
+
+        // Show just while swapping/priming the new source
         showLoader(true);
 
         // Switch to module video, seek, play to playTo then pause and open info
@@ -417,29 +455,40 @@ document.addEventListener('DOMContentLoaded', () => {
         const start = mod.video.playFrom ?? 0;
         const end = mod.video.playTo ?? null;
 
+        // Hide the loader the moment playback actually starts (first decoded frame)
+        const hideOnce = () => {
+            showLoader(false);
+            video.removeEventListener('playing', hideOnce);
+            video.removeEventListener('timeupdate', hideOnce);
+            video.removeEventListener('loadeddata', hideOnce);
+        };
+        video.addEventListener('playing', hideOnce, { once: true });     // best signal
+        video.addEventListener('timeupdate', hideOnce, { once: true });  // fallback
+        video.addEventListener('loadeddata', hideOnce, { once: true });  // extra fallback
+
         const onMeta = async () => {
             video.currentTime = Math.min(start, video.duration || start);
-            try { await video.play(); } catch (e) { }
+            try { await video.play(); } catch (e) { /* no-op */ }
+
             if (end != null) {
                 const onTime = () => {
                     if (video.currentTime >= end) {
                         video.pause();
                         video.removeEventListener('timeupdate', onTime);
-                        showLoader(false);
+                        // loader is already hidden by now — keep it that way
                         openPanel(mod.title, mod.info);
                     }
                 };
                 video.addEventListener('timeupdate', onTime);
             } else {
-                // If no end provided, open panel immediately after playback starts
-                showLoader(false);
                 openPanel(mod.title, mod.info);
             }
         };
 
-        if (Number.isFinite(video.duration) && video.duration > 0) { onMeta(); }
-        else { video.addEventListener('loadedmetadata', onMeta, { once: true }); }
+        if (Number.isFinite(video.duration) && video.duration > 0) onMeta();
+        else video.addEventListener('loadedmetadata', onMeta, { once: true });
     }
+
 
     function reverseToMainStop() {
         // Simulate reverse playback back to MAIN_STOP_AT, then show hotspots
@@ -946,9 +995,9 @@ container.addEventListener('mouseleave', () => {
 });
 
 
-const cyberVideo        = document.getElementById('cyberVideo_mainVideo');
+const cyberVideo = document.getElementById('cyberVideo_mainVideo');
 const cyberVideoSection = document.getElementById('cyberVideo_container');
-const cyberVideoText    = document.querySelector('.cyberVideo_textBox');
+const cyberVideoText = document.querySelector('.cyberVideo_textBox');
 
 // Harden autoplay: ensure muted + playsinline at runtime too
 cyberVideo.muted = true;
@@ -959,40 +1008,40 @@ let metaReady = false;
 cyberVideo.addEventListener('loadedmetadata', () => { metaReady = true; });
 
 function tryPlay() {
-  if (!metaReady) return; // will be called again by observer
-  const p = cyberVideo.play();
-  if (p && typeof p.then === 'function') {
-    p.then(() => {
-      cyberVideoText.style.opacity = '1';
-    }).catch((err) => {
-      // Fallback: show controls so the user can tap once (counts as gesture)
-      cyberVideo.setAttribute('controls', '');
-      console.warn('Autoplay blocked, showing controls:', err);
-    });
-  }
+    if (!metaReady) return; // will be called again by observer
+    const p = cyberVideo.play();
+    if (p && typeof p.then === 'function') {
+        p.then(() => {
+            cyberVideoText.style.opacity = '1';
+        }).catch((err) => {
+            // Fallback: show controls so the user can tap once (counts as gesture)
+            cyberVideo.setAttribute('controls', '');
+            console.warn('Autoplay blocked, showing controls:', err);
+        });
+    }
 }
 
 const io = new IntersectionObserver(
-  entries => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        tryPlay();
-      } else {
-        cyberVideo.pause();
-        cyberVideoText.style.opacity = '0';
-      }
-    });
-  },
-  { threshold: 0.5 }
+    entries => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                tryPlay();
+            } else {
+                cyberVideo.pause();
+                cyberVideoText.style.opacity = '0';
+            }
+        });
+    },
+    { threshold: 0.5 }
 );
 
 io.observe(cyberVideoSection);
 
 // Extra fallback for older browsers (no IO)
 if (!('IntersectionObserver' in window)) {
-  window.addEventListener('scroll', () => {
-    const r = cyberVideoSection.getBoundingClientRect();
-    const halfVisible = r.top < window.innerHeight * 0.5 && r.bottom > window.innerHeight * 0.5;
-    if (halfVisible) tryPlay(); else cyberVideo.pause();
-  });
+    window.addEventListener('scroll', () => {
+        const r = cyberVideoSection.getBoundingClientRect();
+        const halfVisible = r.top < window.innerHeight * 0.5 && r.bottom > window.innerHeight * 0.5;
+        if (halfVisible) tryPlay(); else cyberVideo.pause();
+    });
 }
