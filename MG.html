@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MG Select Cyberster</title>
+    <link rel="stylesheet" href="mg.css">
+</head>
+
+<body>
+    <!-- Preloader -->
+    <div class="preloader" id="preloader">
+        <div class="preloader-logo" id="preloaderLogo"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="header" id="header">
+        <div class="header-logo"></div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero-section" id="heroSection">
+        <div class="hero-container">
+            <div class="loading-placeholder" id="loadingPlaceholder">
+                <div class="loading-spinner"></div>
+            </div>
+            <canvas class="hero-canvas" id="heroCanvas"></canvas>
+            <div class="hero-content" id="heroContent">
+                <h1 class="hero-title" id="heroTitle">MG Cyberster</h1>
+                <p class="hero-subtitle" id="heroSubtitle">Because turning heads is just the beginning.</p>
+                <a href="#" class="hero-cta" id="heroCta">DOWNLOAD BROCHURE</a>
+            </div>
+            <div class="scroll-indicator" id="scrollIndicator">
+                <div class="scroll-line" id="scrollLine"></div>
+                <div class="scroll-text">SCROLL</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Second Section-->
+    <section class="second-section" id="secondSection">
+        <div class="second-container">
+            <div class="car-background" id="carBackground"></div>
+            <div class="car-image" id="carImage">
+                <img src="./assets/car-foreground.webp" alt="MG Cyberster" />
+            </div>
+            <div class="section-content" id="sectionContent">
+                <h2 class="section-title">THE WORLD'S FASTEST MG ROADSTER</h2>
+                <p class="section-subtitle">A thrilling burst of power, instant torque and a smooth, responsive ride
+                    that lets you feel every twist and turn. Your adrenaline levels are going to take off.</p>
+
+                <div class="specs-grid">
+                    <div class="spec-item">
+                        <div class="spec-value">3.2<span style="font-size: 0.8em; margin-left: 5px;">SECS</span></div>
+                        <div class="spec-label">ACC (0 – 100 KMPH)</div>
+                    </div>
+                    <div class="spec-item">
+                        <div class="spec-value">510<span style="font-size: 0.8em; margin-left: 5px;">PS</span></div>
+                        <div class="spec-label">POWER</div>
+                    </div>
+                    <div class="spec-item">
+                        <div class="spec-value">725<span style="font-size: 0.8em; margin-left: 5px;">NM</span></div>
+                        <div class="spec-label">TORQUE</div>
+                    </div>
+                    <div class="spec-item">
+                        <div class="spec-value">77<span style="font-size: 0.8em; margin-left: 5px;">kWh</span></div>
+                        <div class="spec-label">BATTERY PACK</div>
+                    </div>
+                    <div class="spec-item">
+                        <div class="spec-value">580<span style="font-size: 0.8em; margin-left: 5px;">KM*</span></div>
+                        <div class="spec-label">RANGE</div>
+                    </div>
+                </div>
+
+                <div class="disclaimer">
+                    <p>* Specified Range is as per standard MIDC test procedure (Part 1 + Part 2), carried out by
+                        Certifying Authority iCAT. Range may vary depending on various driving behaviour, traffic
+                        conditions, speeds, vehicle loads etc.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    <div class="frame-counter" id="frameCounter">
+        Frame: <span id="currentFrameNumber">0</span> / <span id="totalFrameNumber">401</span>
+    </div>
+
+    <!-- 3rd video -->
+    <section class="section">
+        <div class="stage" id="stage">
+            <video id="video" playsinline preload="auto"></video>
+
+            <!-- Left headline that shows at pause -->
+            <div class="maintext" id="mainText" hidden>
+                <h1>Thrill, Distilled.</h1>
+                <p>Refined by design. Felt in motion.</p>
+            </div>
+
+            <div class="hotspots" id="hotspots" hidden>
+                <!-- Positions are percentage-based via style left/top -->
+                <button class="hotspot" id="hs-1" style="left:42%; top:40%" aria-label="Open module A"></button>
+                <button class="hotspot" id="hs-2" style="left:69%; top:61%" aria-label="Open module B"></button>
+                <button class="hotspot" id="hs-3" style="left:28%; top:48%" aria-label="Open module C"></button>
+            </div>
+
+            <div class="hint" id="hint">Click a hotspot to explore</div>
+
+            <div class="panel" id="panel" aria-live="polite" aria-hidden="true">
+                <header>
+                    <span class="dot"></span>
+                    <h3 id="panelTitle">Module</h3>
+                    <button class="close" id="closePanel">Close</button>
+                </header>
+                <div class="body" id="panelBody">Loading…</div>
+            </div>
+
+            <div class="loader" id="loader" aria-hidden="true">
+                <div class="spinner" aria-label="Loading"></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="image__reveal--wrapper">
+        <div class="image__reveal--container">
+            <div class="image__reveal--images">
+                <!-- Base Image (Car Exterior) -->
+                <div class="image__reveal--image">
+                    <picture>
+                        <source
+                            srcset="https://mgmotor.scene7.com/is/image/mgmotor/image-reveal-main?fmt=webp-alpha&resMode=bisharp&fit=constrain&qlt=90&wid=1080"
+                            media="(min-width:768px)">
+                        <img draggable="false" class="image__reveal--img"
+                            src="https://mgmotor.scene7.com/is/image/mgmotor/image-reveal-main-mobile?fmt=webp-alpha&resMode=bisharp&fit=constrain&qlt=90&wid=720"
+                            alt="MG Cyberster" loading="lazy">
+                    </picture>
+                </div>
+
+                <!-- Black reveal strip -->
+                <div class="reveal-strip" id="revealStrip"></div>
+
+                <!-- Overlay Image (Car Frame) -->
+                <div class="image__reveal--image image__reveal--overlay" id="overlayImage">
+                    <picture>
+                        <source
+                            srcset="https://mgmotor.scene7.com/is/image/mgmotor/image-reveal?fmt=webp-alpha&resMode=bisharp&fit=constrain&qlt=90&wid=1080"
+                            media="(min-width:768px)">
+                        <img draggable="false" class="image__reveal--img"
+                            src="https://mgmotor.scene7.com/is/image/mgmotor/image-reveal-mobile?fmt=webp-alpha&resMode=bisharp&fit=constrain&qlt=90&wid=720"
+                            alt="Car Frame" loading="lazy">
+                    </picture>
+                </div>
+
+                <!-- Glitch effect layers -->
+                <div class="image__reveal__glitch--img" id="glitch1">
+                    <picture>
+                        <source
+                            srcset="https://mgmotor.scene7.com/is/image/mgmotor/image-reveal-main?fmt=webp-alpha&resMode=bisharp&fit=constrain&qlt=90&wid=1080"
+                            media="(min-width:768px)">
+                        <img draggable="false" class="image__reveal--img"
+                            src="https://mgmotor.scene7.com/is/image/mgmotor/image-reveal-main-mobile?fmt=webp-alpha&resMode=bisharp&fit=constrain&qlt=90&wid=720"
+                            alt="Glitch">
+                    </picture>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="drive-section" id="drive">
+        <!-- Background video (paused by default) -->
+        <video id="bgVideo" class="drive-video" preload="metadata" playsinline poster="assets/cyberster-poster.jpg">
+            <source src="assets/Animation-Video-3.1.mp4" type="video/webm" />
+            <source src="assets/Animation-Video-3.1.mp4" type="video/mp4" />
+            <!-- Fallback text -->
+            Your browser does not support the video tag.
+        </video>
+
+        <!-- Optional center HUD ring for style -->
+        <div class="hud" aria-hidden="true">
+            <div class="ring"></div>
+        </div>
+
+        <!-- Copy + CTA -->
+        <div class="drive-content">
+            <div class="drive-left">
+                <h2 class="headline">Dial Into The Drive</h2>
+                <p class="subcopy">
+                    Four modes. Four mindsets. Comfort for calm. Custom for control. Sport for the
+                    edge. Super Sport for full send.
+                </p>
+            </div>
+
+            <div class="drive-right">
+                <button class="launch-btn" id="launchBtn" aria-pressed="false"
+                    aria-label="Hold to play the drive video">
+                    LAUNCH MODE
+                </button>
+                <p class="hint1" id="hint1">Hold the button to feel the rush</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 6th video -->
+    <!-- <section class="videoSection_container" id="videoSection">
+        <div class="videoSection_frame">
+            <div class="videoSection_hint">Scroll into view</div>
+
+            <video id="videoSection_mainVideo" class="videoSection_mainVideo" playsinline muted preload="auto"
+                src="assets/Animation-Video-5.mp4"></video>
+
+            <div id="videoSection_hotspots" class="videoSection_hotspots">
+                <button class="videoSection_spot" data-detail-title="Part A — Cooling Shroud"
+                    data-detail-video="assets/Animation-Video-5.mp4"
+                    data-detail-text="This module regulates thermal stability and reduces noise footprints."
+                    data-from="3.6" data-to="5.0"
+                    style="--x: 32%; --y: 58%;"></button>
+
+                <button class="videoSection_spot" data-detail-title="Part B — Optical Assembly"
+                    data-detail-video="assets/Animation-Video-5.mp4"
+                    data-detail-text="Optics aligner with quick-calibration lugs and anti-glare coating."
+                    data-from="13.0" data-to="21.0"
+                    style="--x: 68%; --y: 42%;"></button>
+            </div>
+        </div>
+    </section>
+
+    <aside id="videoSection_drawer" class="videoSection_drawer">
+        <div class="videoSection_drawerHeader">
+            <span class="videoSection_pill">Detail</span>
+            <div id="videoSection_drawerTitle" class="videoSection_drawerTitle">Part</div>
+            <button id="videoSection_closeBtn" class="videoSection_closeBtn">Close ✕</button>
+        </div>
+
+        <div class="videoSection_drawerBody">
+            <div class="videoSection_drawerVideo">
+                <video id="videoSection_detailVideo" class="videoSection_detailVideo" playsinline muted controls
+                    preload="auto"></video>
+            </div>
+            <div id="videoSection_drawerInfo" class="videoSection_drawerInfo"></div>
+        </div>
+
+        <div class="videoSection_drawerFooter">
+            <small style="color:var(--vs-muted)">Tip: Press Esc to close</small>
+        </div>
+    </aside> -->
+
+
+    <section class="cyberVideo_container" id="cyberVideo_container">
+        <div class="cyberVideo_textBox">
+            <h2 class="cyberVideo_heading">Lean Battery. Loud Results.</h2>
+            <p class="cyberVideo_subtext">Slimmer than your can of fizz — but the rush? That’s full-bodied.</p>
+        </div>
+
+        <!-- IMPORTANT: muted + playsinline + preload; 'autoplay' helps on some android browsers -->
+        <video id="cyberVideo_mainVideo" class="cyberVideo_video" preload="metadata" muted playsinline autoplay>
+            <!-- Make sure this path is correct and served over https -->
+            <source src="assets/Animation-Video-6.mp4" type="video/mp4" />
+        </video>
+    </section>
+
+    <!-- footer -->
+    <footer class="mgxFooter_wrap">
+        <div class="mgxFooter_container">
+
+            <!-- Top: Left (logo + columns) / Right (newsletter) -->
+            <div class="mgxFooter_top">
+
+                <!-- Left block -->
+                <div>
+                    <!-- Logo row -->
+                    <div class="mgxBrandRow">
+                        <!-- MG hex logo -->
+                        <svg class="mgxLogoMG" viewBox="0 0 64 64" aria-hidden="true">
+                            <path fill="#e9e9e9"
+                                d="M32 2 6 14v36l26 12 26-12V14L32 2zm0 4.5 22 10.2v30.6L32 57.5 10 47.3V16.7L32 6.5z" />
+                            <path fill="#e9e9e9" d="M18 19h6l8 11 8-11h6v26h-6V31l-8 10-8-10v14h-6z" />
+                        </svg>
+                        <div class="wordmark">SELECT</div>
+                    </div>
+
+                    <!-- Link columns -->
+                    <div class="mgxCols">
+                        <div class="mgxCol">
+                            <h4>Cyberster</h4>
+                            <ul>
+                                <li><a href="#">E-BOOK</a></li>
+                                <li><a href="#">Test Drive</a></li>
+                                <li><a href="#">Register Interest</a></li>
+                            </ul>
+                        </div>
+
+                        <div class="mgxCol">
+                            <h4>M9</h4>
+                            <ul>
+                                <li><a href="#">E-BOOK</a></li>
+                                <li><a href="#">Test Drive</a></li>
+                                <li><a href="#">Register Interest</a></li>
+                            </ul>
+                        </div>
+
+                        <div class="mgxCol">
+                            <h4>Network</h4>
+                            <ul>
+                                <li><a href="#">Showroom Locator</a></li>
+                                <li><a href="#">Service Center Locator</a></li>
+                            </ul>
+                        </div>
+
+                        <div class="mgxCol">
+                            <h4>Contact Us</h4>
+                            <ul>
+                                <li><span>Call Us at: <a href="#"
+                                            style="text-transform:none; letter-spacing:.02em;">18005700000</a></span>
+                                </li>
+                                <li><span>Mail Us at: <a href="#"
+                                            style="text-transform:none; letter-spacing:.02em;">MGSelect@mgmotor.co.in</a></span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Newsletter -->
+                <div class="mgxNews">
+                    <h3>Subscribe to our newsletter</h3>
+                    <form class="mgxForm" onsubmit="event.preventDefault();">
+                        <input class="mgxInput" type="email" placeholder="Enter email" required />
+                        <button class="mgxBtn" type="submit">
+                            <span>SIGN UP</span>
+                            <!-- Arrow icon -->
+                            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="display:block">
+                                <path d="M13 5l7 7-7 7M20 12H4" stroke="currentColor" stroke-width="2" fill="none"
+                                    stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </button>
+                    </form>
+                    <label class="mgxAgree">
+                        <input class="mgxCheckbox" type="checkbox" required />
+                        <span>I agree to the <a href="#">privacy policy.</a></span>
+                    </label>
+                </div>
+
+            </div>
+
+            <div class="mgxDivider"></div>
+
+            <!-- Bottom bar -->
+            <div class="mgxBottom">
+                <div class="mgxCopyright">©2025 | MG SELECT</div>
+                <nav class="mgxBottomLinks" aria-label="Footer links">
+                    <a href="#">Privacy Policy</a>
+                    <a href="#">Terms of Service</a>
+                </nav>
+                <div class="mgxSocial" aria-label="Social links">
+                    <!-- Instagram -->
+                    <a href="#" aria-label="Instagram">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm0 0"
+                                fill="#fff" />
+                            <circle cx="12" cy="12" r="3.2" fill="#000" />
+                            <circle cx="17.3" cy="6.7" r="1.2" fill="#000" />
+                            <rect x="3.5" y="3.5" width="17" height="17" rx="4.2" ry="4.2" fill="none" stroke="#000"
+                                stroke-width="1.2" />
+                            <circle cx="12" cy="12" r="3.2" fill="none" stroke="#fff" stroke-width="1.2" />
+                            <circle cx="17.3" cy="6.7" r="1.2" fill="#fff" />
+                        </svg>
+                    </a>
+                    <!-- X (Twitter) -->
+                    <a href="#" aria-label="X">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M3 3l18 18M21 3L3 21" stroke="#fff" stroke-width="2" />
+                        </svg>
+                    </a>
+                    <!-- LinkedIn -->
+                    <a href="#" aria-label="LinkedIn">
+                        <svg viewBox="0 0 24 24">
+                            <rect x="3" y="4" width="4" height="16" fill="#fff" />
+                            <rect x="10" y="10" width="4" height="10" fill="#fff" />
+                            <rect x="15" y="10" width="6" height="10" fill="#fff" />
+                            <circle cx="5" cy="7" r="2" fill="#fff" />
+                        </svg>
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </footer>
+
+    <script src="mg.js"></script>
+</body>
+
+</html>
