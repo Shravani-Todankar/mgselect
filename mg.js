@@ -279,6 +279,24 @@ class AVIFFrameAnimationHero {
 }
 document.addEventListener('DOMContentLoaded', () => {
     new AVIFFrameAnimationHero();
+
+    // Hide scroll indicator after leaving hero section
+    document.addEventListener('scroll', () => {
+        const hero = document.getElementById('heroSection');
+        const scrollIndicator = document.getElementById('scrollIndicator');
+
+        if (!hero || !scrollIndicator) return;
+
+        const rect = hero.getBoundingClientRect();
+
+        // When hero section is mostly out of view, hide the indicator
+        if (rect.bottom <= window.innerHeight * 0.2) {
+            scrollIndicator.classList.remove('visible');
+        } else {
+            scrollIndicator.classList.add('visible');
+        }
+    });
+
 });
 
 // 2nd video section 
@@ -846,6 +864,12 @@ container.addEventListener('mouseleave', () => {
     let reachedStop = false;
     let rafId;
 
+    // Check if section exists before observing
+    if (!section) {
+        console.warn(`Section with id '${sectionId}' not found. Skipping video section initialization.`);
+        return;
+    }
+
     // Observe section visibility (auto-play main until STOP, like stage flow)
     const io = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
@@ -1045,3 +1069,193 @@ if (!('IntersectionObserver' in window)) {
         if (halfVisible) tryPlay(); else cyberVideo.pause();
     });
 }
+
+// carousel js
+// Fixed carousel drag functionality
+const wrapper = document.getElementById('cybersterCarouselWrapper');
+const carousel = document.getElementById('cybersterCarousel');
+
+let isDown = false;
+let startX = 0;
+let current = 0;
+let prev = 0;
+let raf = 0;
+
+// For momentum
+let lastX = 0;
+let lastT = 0;
+let velocity = 0;
+
+const imgs = carousel.querySelectorAll('img');
+imgs.forEach(img => img.addEventListener('dragstart', e => e.preventDefault()));
+
+function bounds() {
+    const max = 0;
+    const min = Math.min(0, -(carousel.scrollWidth - wrapper.clientWidth)); // if content is smaller, min=0
+    return { min, max };
+}
+
+function clamp(x) {
+    const { min, max } = bounds();
+    return Math.max(min, Math.min(max, x));
+}
+
+function setX(x) {
+    carousel.style.transform = `translateX(${x}px)`;
+}
+
+function animate() {
+    setX(current);
+    raf = requestAnimationFrame(animate);
+}
+
+function onDown(e) {
+    isDown = true;
+    startX = e.clientX;
+    lastX = e.clientX;
+    lastT = performance.now();
+    velocity = 0;
+
+    carousel.style.transition = 'none';
+    wrapper.style.cursor = 'grabbing';
+
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(animate);
+
+    // capture pointer so we still receive move events if pointer leaves the element
+    carousel.setPointerCapture(e.pointerId);
+}
+
+function onMove(e) {
+    if (!isDown) return;
+
+    const dx = e.clientX - startX;
+    current = clamp(prev + dx);
+
+    // velocity
+    const now = performance.now();
+    const dt = now - lastT;
+    if (dt > 0) {
+        velocity = (e.clientX - lastX) / dt; // px per ms
+        lastX = e.clientX;
+        lastT = now;
+    }
+
+    // prevent text selection/scrolling when actually dragging sideways
+    e.preventDefault();
+}
+
+function onUp(e) {
+    if (!isDown) return;
+    isDown = false;
+    cancelAnimationFrame(raf);
+
+    wrapper.style.cursor = 'grab';
+
+    // Momentum: coast a bit after release
+    const momentum = velocity * 350; // tune factor
+    let target = clamp(current + momentum);
+
+    // Ease to target
+    carousel.style.transition = 'transform 0.45s cubic-bezier(.22,.61,.36,1)';
+    setX(target);
+
+    prev = target;
+
+    try { carousel.releasePointerCapture(e.pointerId); } catch (_) { }
+}
+
+function onResize() {
+    // keep position valid if viewport changes
+    current = clamp(prev);
+    setX(current);
+    prev = current;
+}
+
+// Pointer Events: one unified API for mouse/touch/pen
+carousel.addEventListener('pointerdown', onDown, { passive: false });
+window.addEventListener('pointermove', onMove, { passive: false });
+window.addEventListener('pointerup', onUp);
+window.addEventListener('pointercancel', onUp);
+
+window.addEventListener('resize', onResize);
+
+// Initial cursor
+wrapper.style.cursor = 'grab';
+
+
+// tabs js
+(function cycInitColorTabs() {
+    const section = document.getElementById('cycSection');
+    const img = document.getElementById('cycCar');
+    const name = document.getElementById('cycName');
+    const tabs = Array.from(document.querySelectorAll('.cyc-tab'));
+
+    // Check if all required elements exist
+    if (!section || !img || !name || tabs.length === 0) {
+        console.warn('Car tabs section elements not found. Skipping initialization.');
+        return;
+    }
+
+    console.log('Car tabs initialized with', tabs.length, 'tabs');
+
+    // ensure first image shows after load for a nicer fade
+    window.addEventListener('load', () => img.classList.add('cyc-show'));
+
+    function selectTab(btn, silent = false) {
+        tabs.forEach(t => {
+            const isSel = t === btn;
+            t.setAttribute('aria-selected', isSel ? 'true' : 'false');
+            t.tabIndex = isSel ? 0 : -1;
+        });
+
+        // Update UI
+        const toName = btn.dataset.name;
+        const toBg = btn.dataset.bg;
+        const toImg = btn.dataset.img;
+
+        name.textContent = toName;
+        section.style.setProperty('--cyc-bg', toBg);
+
+        // cross-fade image
+        img.classList.remove('cyc-show');
+        const swap = () => {
+            img.src = toImg;
+            img.removeEventListener('transitionend', swap);
+            // wait a tick so the browser applies the new src before fade-in
+            requestAnimationFrame(() => requestAnimationFrame(() => img.classList.add('cyc-show')));
+        };
+        // if transitions are disabled, swap immediately
+        if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            img.src = toImg; img.classList.add('cyc-show');
+        } else {
+            img.addEventListener('transitionend', swap, { once: true });
+        }
+
+        if (!silent) btn.focus();
+    }
+
+    // Click
+    tabs.forEach(btn => btn.addEventListener('click', () => selectTab(btn)));
+
+    // Keyboard arrow navigation
+    document.querySelector('.cyc-tabs').addEventListener('keydown', (e) => {
+        const current = document.activeElement;
+        if (!current.classList.contains('cyc-tab')) return;
+
+        let idx = tabs.indexOf(current);
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { idx = (idx + 1) % tabs.length; e.preventDefault(); }
+        else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { idx = (idx - 1 + tabs.length) % tabs.length; e.preventDefault(); }
+        else if (e.key === 'Home') { idx = 0; e.preventDefault(); }
+        else if (e.key === 'End') { idx = tabs.length - 1; e.preventDefault(); }
+        else if (e.key === 'Enter' || e.key === ' ') { selectTab(current); e.preventDefault(); return; }
+
+        const next = tabs[idx];
+        next.focus(); // move focus
+        // Optional: select on focus move (comment out if you prefer select-on-Enter)
+        selectTab(next, true);
+    });
+
+    // If you want a default other than the first, call selectTab(tabs[n])
+    // selectTab(tabs[0], true);
+})();
