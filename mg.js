@@ -8,8 +8,11 @@ class AVIFFrameAnimationHero {
         this.totalFrames = 401;
         this.isLoaded = false;
         this.loadedFrames = 0;
-        this.batchSize = 20;
-        this.preloadDistance = 50;
+
+        // Adaptive batch size based on device
+        this.isMobile = window.innerWidth <= 768;
+        this.batchSize = this.isMobile ? 10 : 20;
+        this.preloadDistance = this.isMobile ? 25 : 50;
 
         this.frameBasePath = './frames/';
         this.frameFilePrefix = 'frame_';
@@ -245,12 +248,22 @@ class AVIFFrameAnimationHero {
             }
         };
 
-        window.addEventListener('scroll', onScroll);
+        // Use passive listeners for better scroll performance on mobile
+        window.addEventListener('scroll', onScroll, { passive: true });
+
+        // Debounced resize handler
+        let resizeTimeout;
         window.addEventListener('resize', () => {
-            this.setupCanvas();
-            if (this.isLoaded) {
-                this.drawFrame(this.currentFrame);
-            }
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                this.isMobile = window.innerWidth <= 768;
+                this.batchSize = this.isMobile ? 10 : 20;
+                this.preloadDistance = this.isMobile ? 25 : 50;
+                this.setupCanvas();
+                if (this.isLoaded) {
+                    this.drawFrame(this.currentFrame);
+                }
+            }, 150);
         });
     }
     updateSecondSection() {
@@ -405,17 +418,30 @@ document.addEventListener('DOMContentLoaded', () => {
         video.src = mainState.src;
         video.currentTime = 0;
         video.play().catch(() => { });
-        mainText?.classList.remove('show'); // keep hidden while playing
+
+        // Check if mobile view
+        const isMobile = window.innerWidth <= 720;
+
+        if (!isMobile) {
+            mainText?.classList.remove('show'); // keep hidden while playing on desktop
+        } else {
+            // On mobile, show text immediately above video
+            if (mainText) {
+                show(mainText);
+                mainText.classList.add('show');
+            }
+        }
+
         const onTime = () => {
             if (video.currentTime >= CONFIG.MAIN_STOP_AT) {
                 video.pause();
                 video.removeEventListener('timeupdate', onTime);
                 show(hotspotsWrap);
                 hint.classList.add('show');
-                //   mainText?.classList.remove('hidden');
-                //   mainText?.classList.add('show');
-                if (mainText) {                         // ← remove the ATTRIBUTE, then fade in
-                    show(mainText);                       // calls el.removeAttribute('hidden')
+
+                // Show text on desktop after video stops
+                if (!isMobile && mainText) {
+                    show(mainText);
                     mainText.classList.add('show');
                 }
             }
@@ -463,7 +489,12 @@ document.addEventListener('DOMContentLoaded', () => {
         activeModule = mod;
         hint.classList.remove('show');
         hide(hotspotsWrap);
-        mainText?.classList.remove('show');
+
+        // Check if mobile - don't hide text on mobile
+        const isMobile = window.innerWidth <= 720;
+        if (!isMobile) {
+            mainText?.classList.remove('show');
+        }
 
         // Show just while swapping/priming the new source
         showLoader(true);
@@ -513,6 +544,9 @@ document.addEventListener('DOMContentLoaded', () => {
         reversing = true;
         const target = CONFIG.MAIN_STOP_AT;
 
+        // Check if mobile view
+        const isMobile = window.innerWidth <= 720;
+
         // First ensure main source is loaded at current frame of module end
         const startFrom = video.currentTime; // where we are now in module
 
@@ -542,8 +576,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     cancelAnimationFrame(reverseRAF);
                     show(hotspotsWrap);
                     hint.classList.add('show');
-                    // mainText?.classList.add('show');
-                    if (mainText) { show(mainText); mainText.classList.add('show'); }
+
+                    // Always show text after reversing
+                    if (mainText) {
+                        show(mainText);
+                        mainText.classList.add('show');
+                    }
                     return;
                 }
                 video.currentTime = newTime;
@@ -594,24 +632,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Safety: if user scrolls away, pause video to save CPU
     const visibilityHandler = () => {
-        const r = document.getElementById('stage').getBoundingClientRect();
+        const stage = document.getElementById('stage');
+        if (!stage) return;
+        const r = stage.getBoundingClientRect();
         const inView = r.top < window.innerHeight * 0.9 && r.bottom > window.innerHeight * 0.1;
         if (!inView) video.pause();
     };
     document.addEventListener('scroll', visibilityHandler, { passive: true });
     window.addEventListener('resize', visibilityHandler);
+
+    // Touch-friendly hotspot interactions for mobile
+    if ('ontouchstart' in window) {
+        const hotspotButtons = document.querySelectorAll('.hotspot');
+        hotspotButtons.forEach(btn => {
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                btn.style.transform = 'scale(1.08)';
+            }, { passive: false });
+
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                btn.style.transform = 'scale(1)';
+                btn.click();
+            }, { passive: false });
+        });
+    }
 })();
 
-// 2nd hover animation
+// 2nd hover animation - Enhanced for touch devices
 const overlayImage = document.getElementById('overlayImage');
 const container = document.querySelector('.image__reveal--container');
 const revealStrip = document.getElementById('revealStrip');
 
-// Mouse move event
-container.addEventListener('mousemove', (e) => {
+function handleReveal(clientY) {
     const containerHeight = container.clientHeight;
     const rect = container.getBoundingClientRect();
-    const y = e.clientY - rect.top;
+    const y = clientY - rect.top;
     const percentage = (y / containerHeight) * 100;
 
     // Calculate strip height based on position - bigger in middle (around 35-65%), smaller at top/bottom
@@ -635,13 +691,29 @@ container.addEventListener('mousemove', (e) => {
     // Reveal the frame image within the strip area
     overlayImage.style.transition = 'clip-path 0.1s ease-out';
     overlayImage.style.clipPath = `inset(${topClip}% 0 ${bottomClip}% 0)`;
-});
+}
 
-// Reset on mouse leave
-container.addEventListener('mouseleave', () => {
+function resetReveal() {
     overlayImage.style.transition = 'clip-path 0.3s ease-out';
     overlayImage.style.clipPath = 'inset(0 0 100% 0)';
+}
+
+// Mouse events
+container.addEventListener('mousemove', (e) => {
+    handleReveal(e.clientY);
 });
+
+// Touch events for mobile
+container.addEventListener('touchmove', (e) => {
+    e.preventDefault(); // Prevent scrolling while interacting
+    if (e.touches.length > 0) {
+        handleReveal(e.touches[0].clientY);
+    }
+}, { passive: false });
+
+// Reset events
+container.addEventListener('mouseleave', resetReveal);
+container.addEventListener('touchend', resetReveal);
 
 // 3rd video section
 (function () {
@@ -659,6 +731,7 @@ container.addEventListener('mouseleave', () => {
         if (holding) return;
         holding = true;
         btn.setAttribute('aria-pressed', 'true');
+        btn.style.transform = 'scale(0.97)';
         hint1.textContent = 'Release to pause';
         try {
             await video.play(); // muted + user gesture -> should succeed
@@ -671,15 +744,27 @@ container.addEventListener('mouseleave', () => {
         if (!holding) return;
         holding = false;
         btn.setAttribute('aria-pressed', 'false');
+        btn.style.transform = 'scale(1)';
         hint1.textContent = 'Hold the button to feel the rush';
         video.pause();
     };
 
-    // Button events
+    // Button events with better touch support
     btn.addEventListener('pointerdown', startHold);
     btn.addEventListener('pointerup', endHold);
     btn.addEventListener('pointerleave', endHold);
     btn.addEventListener('pointercancel', endHold);
+
+    // Additional touch events for better mobile support
+    btn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        startHold();
+    }, { passive: false });
+
+    btn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        endHold();
+    }, { passive: false });
 
     // Keyboard accessibility: Space / Enter to hold
     btn.addEventListener('keydown', (e) => {
@@ -1071,7 +1156,7 @@ if (!('IntersectionObserver' in window)) {
 }
 
 // carousel js
-// Fixed carousel drag functionality
+// Fixed carousel drag functionality - Enhanced for mobile touch
 const wrapper = document.getElementById('cybersterCarouselWrapper');
 const carousel = document.getElementById('cybersterCarousel');
 
@@ -1086,8 +1171,13 @@ let lastX = 0;
 let lastT = 0;
 let velocity = 0;
 
+// Prevent image dragging
 const imgs = carousel.querySelectorAll('img');
-imgs.forEach(img => img.addEventListener('dragstart', e => e.preventDefault()));
+imgs.forEach(img => {
+    img.addEventListener('dragstart', e => e.preventDefault());
+    img.style.pointerEvents = 'none'; // Prevent interference on touch devices
+    img.style.userSelect = 'none'; // Prevent text selection
+});
 
 function bounds() {
     const max = 0;
@@ -1129,20 +1219,25 @@ function onDown(e) {
 function onMove(e) {
     if (!isDown) return;
 
-    const dx = e.clientX - startX;
-    current = clamp(prev + dx);
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+    const dx = clientX - startX;
 
-    // velocity
-    const now = performance.now();
-    const dt = now - lastT;
-    if (dt > 0) {
-        velocity = (e.clientX - lastX) / dt; // px per ms
-        lastX = e.clientX;
-        lastT = now;
+    // Only prevent default if we're actually dragging horizontally
+    if (Math.abs(dx) > 5) {
+        current = clamp(prev + dx);
+
+        // velocity
+        const now = performance.now();
+        const dt = now - lastT;
+        if (dt > 0) {
+            velocity = (clientX - lastX) / dt; // px per ms
+            lastX = clientX;
+            lastT = now;
+        }
+
+        // prevent text selection/scrolling when actually dragging sideways
+        e.preventDefault();
     }
-
-    // prevent text selection/scrolling when actually dragging sideways
-    e.preventDefault();
 }
 
 function onUp(e) {
