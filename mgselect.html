@@ -3,7 +3,9 @@
 
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>MG Select Cyberster</title>
     <link rel="icon" type="image/png" href="assets/mg-icon.png">
     <link rel="stylesheet" href="mg.css">
@@ -87,7 +89,7 @@
         Frame: <span id="currentFrameNumber">0</span> / <span id="totalFrameNumber">401</span>
     </div>
 
-    <!-- 3rd video -->
+    <!-- 3rd video with hubspots start-->
     <section class="section">
         <div class="stage" id="stage">
             <video id="video" playsinline preload="auto"></video>
@@ -121,7 +123,9 @@
             </div>
         </div>
     </section>
+     <!-- 3rd video with hubspots end-->
 
+    <!-- on hover image reveal -->
     <section class="image__reveal--wrapper">
         <div class="image__reveal--container">
             <div class="image__reveal--images">
@@ -167,6 +171,7 @@
         </div>
     </section>
 
+    <!-- hover button video playing -->
     <section class="drive-section" id="drive">
         <!-- Background video (paused by default) -->
         <video id="bgVideo" class="drive-video" preload="metadata" playsinline poster="assets/cyberster-poster.jpg">
@@ -201,6 +206,7 @@
         </div>
     </section>
 
+    <!-- normal video playing -->
     <section class="cyberVideo_container" id="cyberVideo_container">
         <div class="cyberVideo_textBox">
             <h2 class="cyberVideo_heading">Lean Battery. Loud Results.</h2>
