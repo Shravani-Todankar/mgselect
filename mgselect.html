@@ -21,6 +21,8 @@
     <meta name="twitter:description" content="All-electric roadster: 0–100 km/h in 3.2s, 510 PS, up to 580 km range." />
 
     <link rel="icon" type="image/png" href="assets/mg-icon.png">
+    <!-- Paint the first hero frame ASAP while the rest stream in -->
+    <link rel="preload" as="image" href="frames/frame_0001.avif" type="image/avif">
     <link rel="stylesheet" href="mg.css">
     <link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;500;600;700&display=swap" rel="stylesheet">
 
@@ -534,7 +536,7 @@
         </div>
     </footer>
 
-    <script src="mg.js?v=2"></script>
+    <script src="mg.js?v=3"></script>
 </body>
 
 </html>

@@ -137,15 +137,21 @@ class AVIFFrameAnimationHero {
         const placeholder = document.getElementById('loadingPlaceholder');
         if (placeholder) placeholder.style.display = 'none';
 
+        // Progressive reveal: as soon as the first batch is ready, reveal the hero
+        // and let the remaining frames stream in the background. drawFrame() guards
+        // on frame availability, and preloadNearbyFrames() prioritises frames around
+        // the current scroll position, so scrubbing works before everything loads.
         await this.loadFrameBatch(0, Math.min(this.batchSize, this.totalFrames));
+        this.onFramesReady();
+        this.loadRemainingFrames();
+    }
 
+    async loadRemainingFrames() {
         for (let i = this.batchSize; i < this.totalFrames; i += this.batchSize) {
             const endIndex = Math.min(i + this.batchSize, this.totalFrames);
             await this.loadFrameBatch(i, endIndex);
             await new Promise(resolve => setTimeout(resolve, 10));
         }
-
-        this.onAllFramesLoaded();
     }
 
     async loadFrameBatch(startIndex, endIndex) {
@@ -178,7 +184,7 @@ class AVIFFrameAnimationHero {
         });
     }
 
-    onAllFramesLoaded() {
+    onFramesReady() {
         this.isLoaded = true;
         this.simulatePreloader();
     }
@@ -193,7 +199,7 @@ class AVIFFrameAnimationHero {
 
             setTimeout(() => {
                 header?.classList.add('seamless-transition');
-            }, 1700);
+            }, 300);
 
             setTimeout(() => {
                 preloader?.classList.add('fade-out');
@@ -201,17 +207,17 @@ class AVIFFrameAnimationHero {
                 setTimeout(() => {
                     header?.classList.remove('seamless-transition');
                     header?.classList.add('visible');
-                }, 200);
+                }, 150);
 
                 setTimeout(() => {
                     this.startHeroAnimation();
-                }, 500);
+                }, 300);
 
                 setTimeout(() => {
                     preloader?.remove();
-                }, 1000);
-            }, 2000);
-        }, 1500);
+                }, 600);
+            }, 500);
+        }, 400);
     }
 
     startHeroAnimation() {
