@@ -1,8 +1,39 @@
+// ---------------------------------------------------------------------------
+// Smooth scroll (Lenis) + GSAP ScrollTrigger integration
+// Libraries are loaded as CDN globals (gsap, ScrollTrigger, Lenis) before this
+// file runs. Guard everything so the site still works if they're absent.
+// ---------------------------------------------------------------------------
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+if (window.gsap && window.ScrollTrigger && window.Lenis && !prefersReducedMotion) {
+    gsap.registerPlugin(ScrollTrigger);
+
+    const lenis = new Lenis({ lerp: 0.1, smoothWheel: true });
+    lenis.on('scroll', ScrollTrigger.update);
+    gsap.ticker.add((time) => lenis.raf(time * 1000));
+    gsap.ticker.lagSmoothing(0);
+
+    // Expose so other IIFEs can use it if needed.
+    window.__lenis = lenis;
+} else if (window.gsap && window.ScrollTrigger) {
+    // Reduced-motion (or no Lenis): still register ScrollTrigger for scrubbing,
+    // but rely on native scroll instead of smooth-scroll.
+    gsap.registerPlugin(ScrollTrigger);
+}
+
 // 1st section
 class AVIFFrameAnimationHero {
     constructor() {
         this.canvas = document.getElementById('heroCanvas');
+        // Guard: missing canvas must not throw and crash the whole script.
+        if (!this.canvas) {
+            console.warn('heroCanvas not found. Skipping hero animation.');
+            this.disabled = true;
+            return;
+        }
         this.ctx = this.canvas.getContext('2d');
+        this.avifSupported = true; // updated async by detectAvifSupport()
+        this.textSwapTimer = null; // handle for cancellable text-swap timeout
         this.frames = [];
         this.currentFrame = 0;
         this.totalFrames = 401;
@@ -43,8 +74,49 @@ class AVIFFrameAnimationHero {
 
     init() {
         this.setupCanvas();
-        this.startImagePreloading();
         this.bindEvents();
+        // Detect AVIF support first; only start frame preloading if supported.
+        this.detectAvifSupport().then((supported) => {
+            this.avifSupported = supported;
+            if (supported) {
+                this.startImagePreloading();
+            } else {
+                this.handleAvifUnsupported();
+            }
+        });
+    }
+
+    // Async AVIF feature detection via a 1px AVIF data URI probe.
+    detectAvifSupport() {
+        return new Promise((resolve) => {
+            const img = new Image();
+            const done = (ok) => resolve(ok);
+            img.onload = () => done(img.width > 0 && img.height > 0);
+            img.onerror = () => done(false);
+            // Minimal 1px AVIF.
+            img.src = 'data:image/avif;base64,AAAAIGZ0eXBhdmlmAAAAAGF2aWZtaWYxbWlhZk1BMUIAAADybWV0YQAAAAAAAAAoaGRscgAAAAAAAAAAcGljdAAAAAAAAAAAAAAAAGxpYmF2aWYAAAAADnBpdG0AAAAAAAEAAAAeaWxvYwAAAABEAAABAAEAAAABAAABGgAAAB0AAAAoaWluZgAAAAAAAQAAABppbmZlAgAAAAABAABhdjAxQ29sb3IAAAAAamlwcnAAAABLaXBjbwAAABRpc3BlAAAAAAAAAAEAAAABAAAAEHBpeGkAAAAAAwgICAAAAAxhdjFDgQAMAAAAABNjb2xybmNseAACAAIABoAAAAAXaXBtYQAAAAAAAAABAAEEAQKDBAAAACVtZGF0EgAKCBgABogQEDQgMgkQAAAAB8dSLfI=';
+        });
+    }
+
+    // AVIF unsupported (e.g. Safari < 16, older Android): skip frame-scrub, hide
+    // the loader gracefully, and leave the hero text visible over the canvas
+    // background. A full fix would ship a WebP/JPEG fallback frame set and swap
+    // frameFileExtension accordingly — out of scope, those assets don't exist yet.
+    handleAvifUnsupported() {
+        console.warn('AVIF not supported; skipping frame scrub. Hero text shown over static background.');
+        const placeholder = document.getElementById('loadingPlaceholder');
+        if (placeholder) placeholder.style.display = 'none';
+
+        const preloader = document.getElementById('preloader');
+        const header = document.getElementById('header');
+        if (preloader) {
+            preloader.classList.add('fade-out');
+            setTimeout(() => { preloader.remove(); }, 600);
+        }
+        if (header) header.classList.add('visible');
+
+        const heroContent = document.getElementById('heroContent');
+        if (heroContent) heroContent.classList.add('visible');
     }
 
     setupCanvas() {
@@ -58,7 +130,8 @@ class AVIFFrameAnimationHero {
     }
 
     async startImagePreloading() {
-        document.getElementById('loadingPlaceholder').style.display = 'none';
+        const placeholder = document.getElementById('loadingPlaceholder');
+        if (placeholder) placeholder.style.display = 'none';
 
         await this.loadFrameBatch(0, Math.min(this.batchSize, this.totalFrames));
 
@@ -112,18 +185,18 @@ class AVIFFrameAnimationHero {
             const logo = document.getElementById('preloaderLogo');
             const header = document.getElementById('header');
 
-            logo.classList.add('shrink');
+            logo?.classList.add('shrink');
 
             setTimeout(() => {
-                header.classList.add('seamless-transition');
+                header?.classList.add('seamless-transition');
             }, 1700);
 
             setTimeout(() => {
-                preloader.classList.add('fade-out');
+                preloader?.classList.add('fade-out');
 
                 setTimeout(() => {
-                    header.classList.remove('seamless-transition');
-                    header.classList.add('visible');
+                    header?.classList.remove('seamless-transition');
+                    header?.classList.add('visible');
                 }, 200);
 
                 setTimeout(() => {
@@ -131,15 +204,15 @@ class AVIFFrameAnimationHero {
                 }, 500);
 
                 setTimeout(() => {
-                    preloader.remove();
+                    preloader?.remove();
                 }, 1000);
             }, 2000);
         }, 1500);
     }
 
     startHeroAnimation() {
-        document.getElementById('heroContent').classList.add('visible');
-        document.getElementById('scrollIndicator').classList.add('visible');
+        document.getElementById('heroContent')?.classList.add('visible');
+        document.getElementById('scrollIndicator')?.classList.add('visible');
         this.drawFrame(0);
     }
 
@@ -189,6 +262,8 @@ class AVIFFrameAnimationHero {
             textStateIndex = 1;
         }
 
+        if (!heroTitle || !heroSubtitle || !heroCta) return;
+
         const currentState = this.textStates[textStateIndex];
 
         if (heroTitle.textContent !== currentState.title) {
@@ -196,10 +271,14 @@ class AVIFFrameAnimationHero {
             heroSubtitle.style.opacity = '0';
             heroCta.style.opacity = '0';
 
-            setTimeout(() => {
-                heroTitle.textContent = currentState.title;
-                heroSubtitle.textContent = currentState.subtitle;
-                heroCta.textContent = currentState.cta;
+            // Cancel any pending swap so fast scrolling can't leave stale text.
+            clearTimeout(this.textSwapTimer);
+            this.textSwapTimer = setTimeout(() => {
+                // Re-check the target state at fire time (progress may have moved on).
+                const state = this.textStates[textStateIndex];
+                heroTitle.textContent = state.title;
+                heroSubtitle.textContent = state.subtitle;
+                heroCta.textContent = state.cta;
 
                 heroTitle.style.opacity = '1';
                 heroSubtitle.style.opacity = '0.8';
@@ -219,39 +298,82 @@ class AVIFFrameAnimationHero {
         }
     }
 
+    // Drive the hero scrub from a given 0..1 progress value.
+    updateHeroProgress(progress) {
+        const frameIndex = Math.floor(progress * (this.totalFrames - 1));
+        this.drawFrame(frameIndex);
+        this.preloadNearbyFrames(frameIndex);
+        this.updateTextContent(progress);
+
+        const scrollLine = document.getElementById('scrollLine');
+        if (scrollLine) {
+            scrollLine.style.setProperty('--progress', `${progress * 100}%`);
+        }
+
+        // Scroll indicator: hide once we've scrolled meaningfully into the hero.
+        const scrollIndicator = document.getElementById('scrollIndicator');
+        if (scrollIndicator) {
+            if (progress > 0.05) scrollIndicator.classList.remove('visible');
+            else scrollIndicator.classList.add('visible');
+        }
+    }
+
     bindEvents() {
-        let ticking = false;
+        const useST = !!(window.gsap && window.ScrollTrigger);
 
-        const updateAnimation = () => {
+        if (useST) {
+            // Hero scrub via ScrollTrigger. Guard on trigger element existence.
             const heroSection = document.getElementById('heroSection');
-            const rect = heroSection.getBoundingClientRect();
-            const progress = Math.max(0, Math.min(1, -rect.top / (rect.height - window.innerHeight)));
-
-            const frameIndex = Math.floor(progress * (this.totalFrames - 1));
-            this.drawFrame(frameIndex);
-            this.preloadNearbyFrames(frameIndex);
-            this.updateTextContent(progress);
-
-            const scrollLine = document.getElementById('scrollLine');
-            if (scrollLine) {
-                scrollLine.style.setProperty('--progress', `${progress * 100}%`);
+            if (heroSection) {
+                ScrollTrigger.create({
+                    trigger: heroSection,
+                    start: 'top top',
+                    end: 'bottom bottom',
+                    scrub: true,
+                    onUpdate: (self) => {
+                        if (!this.isLoaded) return;
+                        this.updateHeroProgress(self.progress);
+                    }
+                });
             }
 
-            this.updateSecondSection();
-            ticking = false;
-        };
-
-        const onScroll = () => {
-            if (!ticking && this.isLoaded) {
-                requestAnimationFrame(updateAnimation);
-                ticking = true;
+            // Second section scrub via its own ScrollTrigger.
+            const secondSection = document.getElementById('secondSection');
+            if (secondSection) {
+                ScrollTrigger.create({
+                    trigger: secondSection,
+                    start: 'top top',
+                    end: 'bottom bottom',
+                    scrub: true,
+                    onUpdate: (self) => this.updateSecondSection(self.progress)
+                });
             }
-        };
+        } else {
+            // Fallback: manual scroll listener (no GSAP/Lenis available).
+            let ticking = false;
+            const updateAnimation = () => {
+                const heroSection = document.getElementById('heroSection');
+                if (heroSection) {
+                    const rect = heroSection.getBoundingClientRect();
+                    const denom = rect.height - window.innerHeight;
+                    const progress = denom > 0
+                        ? Math.max(0, Math.min(1, -rect.top / denom))
+                        : 0;
+                    this.updateHeroProgress(progress);
+                }
+                this.updateSecondSection();
+                ticking = false;
+            };
+            const onScroll = () => {
+                if (!ticking && this.isLoaded) {
+                    requestAnimationFrame(updateAnimation);
+                    ticking = true;
+                }
+            };
+            window.addEventListener('scroll', onScroll, { passive: true });
+        }
 
-        // Use passive listeners for better scroll performance on mobile
-        window.addEventListener('scroll', onScroll, { passive: true });
-
-        // Debounced resize handler
+        // Debounced resize handler (kept for both paths)
         let resizeTimeout;
         window.addEventListener('resize', () => {
             clearTimeout(resizeTimeout);
@@ -263,53 +385,47 @@ class AVIFFrameAnimationHero {
                 if (this.isLoaded) {
                     this.drawFrame(this.currentFrame);
                 }
+                if (useST && window.ScrollTrigger) ScrollTrigger.refresh();
             }, 150);
         });
     }
-    updateSecondSection() {
+    // Accepts an optional explicit progress (from ScrollTrigger). Falls back to
+    // manual rect math (with divide-by-zero guard) when not provided.
+    updateSecondSection(progressArg) {
         const secondSection = document.getElementById('secondSection');
         const carBackground = document.getElementById('carBackground');
         const carImage = document.getElementById('carImage');
         const sectionContent = document.getElementById('sectionContent');
         if (!secondSection || !carBackground || !carImage) return;
 
-        const rect = secondSection.getBoundingClientRect();
-        const progress = Math.max(0, Math.min(1, -rect.top / (rect.height - window.innerHeight)));
+        let progress;
+        if (typeof progressArg === 'number') {
+            progress = progressArg;
+        } else {
+            const rect = secondSection.getBoundingClientRect();
+            const denom = rect.height - window.innerHeight;
+            progress = denom > 0 ? Math.max(0, Math.min(1, -rect.top / denom)) : 0;
+        }
         const backgroundY = progress * 100;
         carBackground.style.backgroundPosition = `center ${backgroundY}%`;
         if (progress <= 0.3) {
             carImage.style.opacity = '1';
-            sectionContent.classList.remove('visible');
+            sectionContent?.classList.remove('visible');
         } else if (progress <= 0.6) {
             const fadeProgress = (progress - 0.3) / 0.3;
             carImage.style.opacity = `${1 - fadeProgress}`;
-            sectionContent.classList.remove('visible');
+            sectionContent?.classList.remove('visible');
         } else {
             carImage.style.opacity = '0';
-            sectionContent.classList.add('visible');
+            sectionContent?.classList.add('visible');
         }
     }
 }
 document.addEventListener('DOMContentLoaded', () => {
     new AVIFFrameAnimationHero();
-
-    // Hide scroll indicator after leaving hero section
-    document.addEventListener('scroll', () => {
-        const hero = document.getElementById('heroSection');
-        const scrollIndicator = document.getElementById('scrollIndicator');
-
-        if (!hero || !scrollIndicator) return;
-
-        const rect = hero.getBoundingClientRect();
-
-        // When hero section is mostly out of view, hide the indicator
-        if (rect.bottom <= window.innerHeight * 0.2) {
-            scrollIndicator.classList.remove('visible');
-        } else {
-            scrollIndicator.classList.add('visible');
-        }
-    });
-
+    // Scroll-indicator visibility is now driven by the hero ScrollTrigger /
+    // fallback scroll handler inside updateHeroProgress(); the separate manual
+    // scroll listener that lived here has been removed as redundant.
 });
 
 // 2nd video section 
@@ -373,9 +489,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const closePanelBtn = document.getElementById('closePanel');
     const hint = document.getElementById('hint');
 
+    // Guard: if the core elements of this section are absent, skip init so a
+    // missing element doesn't throw and crash the rest of the script.
+    if (!video || !hotspotsWrap || !loader || !panel || !closePanelBtn) {
+        console.warn('2nd video section elements not found. Skipping initialization.');
+        return;
+    }
+
     /**
      * STATE
      */
+    let onMainTime = null; // active timeupdate handler for playMainUntilStop
+    let onModuleTime = null; // active timeupdate handler for playModule segment
     let reversing = false;
     let reverseRAF = null;
     let activeModule = null; // object from CONFIG.MODULES
@@ -391,6 +516,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const closePanel = () => { panel.classList.remove('open'); panel.setAttribute('aria-hidden', 'true'); };
 
     function whenVisibleOnce(node, cb) {
+        if (!node) return; // guard: nothing to observe
         // Observe entrance into viewport to start main playback once
         const io = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
@@ -432,12 +558,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        const onTime = () => {
+        // Remove any prior handler before adding, so repeated IntersectionObserver
+        // re-entries don't stack up multiple timeupdate listeners.
+        if (onMainTime) video.removeEventListener('timeupdate', onMainTime);
+        onMainTime = () => {
             if (video.currentTime >= CONFIG.MAIN_STOP_AT) {
                 video.pause();
-                video.removeEventListener('timeupdate', onTime);
+                video.removeEventListener('timeupdate', onMainTime);
+                onMainTime = null;
                 show(hotspotsWrap);
-                hint.classList.add('show');
+                hint?.classList.add('show');
 
                 // Show text on desktop after video stops
                 if (!isMobile && mainText) {
@@ -446,7 +576,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         };
-        video.addEventListener('timeupdate', onTime);
+        video.addEventListener('timeupdate', onMainTime);
     }
 
     // function playModule(mod) {
@@ -487,7 +617,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function playModule(mod) {
         activeModule = mod;
-        hint.classList.remove('show');
+        hint?.classList.remove('show');
         hide(hotspotsWrap);
 
         // Check if mobile - don't hide text on mobile
@@ -520,15 +650,19 @@ document.addEventListener('DOMContentLoaded', () => {
             try { await video.play(); } catch (e) { /* no-op */ }
 
             if (end != null) {
-                const onTime = () => {
+                // Remove any prior segment handler so rapid open/close of modules
+                // doesn't leave stacked timeupdate listeners on the video.
+                if (onModuleTime) video.removeEventListener('timeupdate', onModuleTime);
+                onModuleTime = () => {
                     if (video.currentTime >= end) {
                         video.pause();
-                        video.removeEventListener('timeupdate', onTime);
+                        video.removeEventListener('timeupdate', onModuleTime);
+                        onModuleTime = null;
                         // loader is already hidden by now — keep it that way
                         openPanel(mod.title, mod.info);
                     }
                 };
-                video.addEventListener('timeupdate', onTime);
+                video.addEventListener('timeupdate', onModuleTime);
             } else {
                 openPanel(mod.title, mod.info);
             }
@@ -575,7 +709,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     reversing = false;
                     cancelAnimationFrame(reverseRAF);
                     show(hotspotsWrap);
-                    hint.classList.add('show');
+                    hint?.classList.add('show');
 
                     // Always show text after reversing
                     if (mainText) {
@@ -698,22 +832,26 @@ function resetReveal() {
     overlayImage.style.clipPath = 'inset(0 0 100% 0)';
 }
 
-// Mouse events
-container.addEventListener('mousemove', (e) => {
-    handleReveal(e.clientY);
-});
+// Guard: only wire the reveal interactions if the elements exist, so a missing
+// container/overlay doesn't throw and crash the rest of the script.
+if (container && overlayImage) {
+    // Mouse events
+    container.addEventListener('mousemove', (e) => {
+        handleReveal(e.clientY);
+    });
 
-// Touch events for mobile
-container.addEventListener('touchmove', (e) => {
-    e.preventDefault(); // Prevent scrolling while interacting
-    if (e.touches.length > 0) {
-        handleReveal(e.touches[0].clientY);
-    }
-}, { passive: false });
+    // Touch events for mobile
+    container.addEventListener('touchmove', (e) => {
+        e.preventDefault(); // Prevent scrolling while interacting
+        if (e.touches.length > 0) {
+            handleReveal(e.touches[0].clientY);
+        }
+    }, { passive: false });
 
-// Reset events
-container.addEventListener('mouseleave', resetReveal);
-container.addEventListener('touchend', resetReveal);
+    // Reset events
+    container.addEventListener('mouseleave', resetReveal);
+    container.addEventListener('touchend', resetReveal);
+}
 
 // 3rd video section
 (function () {
@@ -721,6 +859,12 @@ container.addEventListener('touchend', resetReveal);
     const btn = document.getElementById('launchBtn');
     const hint1 = document.getElementById('hint1');
     let holding = false;
+
+    // Guard: skip init if core elements are missing.
+    if (!video || !btn) {
+        console.warn('3rd video section elements not found. Skipping initialization.');
+        return;
+    }
 
     // Ensure we start paused at 0
     video.pause();
@@ -732,7 +876,7 @@ container.addEventListener('touchend', resetReveal);
         holding = true;
         btn.setAttribute('aria-pressed', 'true');
         btn.style.transform = 'scale(0.97)';
-        hint1.textContent = 'Release to pause';
+        hint1 && (hint1.textContent = 'Release to pause');
         try {
             await video.play(); // muted + user gesture -> should succeed
         } catch (e) {
@@ -745,7 +889,7 @@ container.addEventListener('touchend', resetReveal);
         holding = false;
         btn.setAttribute('aria-pressed', 'false');
         btn.style.transform = 'scale(1)';
-        hint1.textContent = 'Hold the button to feel the rush';
+        hint1 && (hint1.textContent = 'Hold the button to feel the rush');
         video.pause();
     };
 
@@ -788,7 +932,7 @@ container.addEventListener('touchend', resetReveal);
                 video.pause();
                 btn.setAttribute('aria-pressed', 'false');
                 holding = false;
-                hint1.textContent = 'Hold the button to feel the rush';
+                hint1 && (hint1.textContent = 'Hold the button to feel the rush');
             }
         });
     }, { threshold: 0.25 });
@@ -948,10 +1092,11 @@ container.addEventListener('touchend', resetReveal);
 
     let reachedStop = false;
     let rafId;
+    let onSegTime = null; // active timeupdate handler for a detail-video segment
 
-    // Check if section exists before observing
-    if (!section) {
-        console.warn(`Section with id '${sectionId}' not found. Skipping video section initialization.`);
+    // Check core elements exist before wiring anything up.
+    if (!section || !mainVideo || !hotspots || !drawer || !closeBtn || !detailVideo) {
+        console.warn(`Video section '${sectionId}' elements not found. Skipping initialization.`);
         return;
     }
 
@@ -972,8 +1117,8 @@ container.addEventListener('touchend', resetReveal);
             return;
         }
         setHotspots(false);
-        if (Number.isFinite(params.startAt)) {
-            mainVideo.currentTime = params.startAt;
+        if (Number.isFinite(startAt)) {
+            mainVideo.currentTime = startAt;
         }
         mainVideo.play().catch(() => { });
     }
@@ -1023,14 +1168,18 @@ container.addEventListener('touchend', resetReveal);
             } catch (_) { }
 
             if (Number.isFinite(segTo) && segTo > 0) {
-                const onTime = () => {
+                // Remove any prior segment handler so repeated hotspot clicks
+                // don't stack multiple timeupdate listeners on detailVideo.
+                if (onSegTime) detailVideo.removeEventListener('timeupdate', onSegTime);
+                onSegTime = () => {
                     if (detailVideo.currentTime >= segTo) {
                         detailVideo.pause();
-                        detailVideo.removeEventListener('timeupdate', onTime);
+                        detailVideo.removeEventListener('timeupdate', onSegTime);
+                        onSegTime = null;
                         openDrawer();
                     }
                 };
-                detailVideo.addEventListener('timeupdate', onTime);
+                detailVideo.addEventListener('timeupdate', onSegTime);
             } else {
                 // Open right away if no end time
                 openDrawer();
@@ -1104,61 +1253,76 @@ container.addEventListener('touchend', resetReveal);
 });
 
 
-const cyberVideo = document.getElementById('cyberVideo_mainVideo');
-const cyberVideoSection = document.getElementById('cyberVideo_container');
-const cyberVideoText = document.querySelector('.cyberVideo_textBox');
+(function () {
+    const cyberVideo = document.getElementById('cyberVideo_mainVideo');
+    const cyberVideoSection = document.getElementById('cyberVideo_container');
+    const cyberVideoText = document.querySelector('.cyberVideo_textBox');
 
-// Harden autoplay: ensure muted + playsinline at runtime too
-cyberVideo.muted = true;
-cyberVideo.playsInline = true;
+    // Guard: skip if core elements are missing.
+    if (!cyberVideo || !cyberVideoSection) {
+        console.warn('cyberVideo section elements not found. Skipping initialization.');
+        return;
+    }
 
-// Wait until metadata is ready so play() promise is more reliable
-let metaReady = false;
-cyberVideo.addEventListener('loadedmetadata', () => { metaReady = true; });
+    // Harden autoplay: ensure muted + playsinline at runtime too
+    cyberVideo.muted = true;
+    cyberVideo.playsInline = true;
 
-function tryPlay() {
-    if (!metaReady) return; // will be called again by observer
-    const p = cyberVideo.play();
-    if (p && typeof p.then === 'function') {
-        p.then(() => {
-            cyberVideoText.style.opacity = '1';
-        }).catch((err) => {
-            // Fallback: show controls so the user can tap once (counts as gesture)
-            cyberVideo.setAttribute('controls', '');
-            console.warn('Autoplay blocked, showing controls:', err);
+    // Wait until metadata is ready so play() promise is more reliable
+    let metaReady = false;
+    cyberVideo.addEventListener('loadedmetadata', () => { metaReady = true; });
+
+    function tryPlay() {
+        if (!metaReady) return; // will be called again by observer
+        const p = cyberVideo.play();
+        if (p && typeof p.then === 'function') {
+            p.then(() => {
+                if (cyberVideoText) cyberVideoText.style.opacity = '1';
+            }).catch((err) => {
+                // Fallback: show controls so the user can tap once (counts as gesture)
+                cyberVideo.setAttribute('controls', '');
+                console.warn('Autoplay blocked, showing controls:', err);
+            });
+        }
+    }
+
+    const io = new IntersectionObserver(
+        entries => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    tryPlay();
+                } else {
+                    cyberVideo.pause();
+                    if (cyberVideoText) cyberVideoText.style.opacity = '0';
+                }
+            });
+        },
+        { threshold: 0.5 }
+    );
+
+    io.observe(cyberVideoSection);
+
+    // Extra fallback for older browsers (no IO)
+    if (!('IntersectionObserver' in window)) {
+        window.addEventListener('scroll', () => {
+            const r = cyberVideoSection.getBoundingClientRect();
+            const halfVisible = r.top < window.innerHeight * 0.5 && r.bottom > window.innerHeight * 0.5;
+            if (halfVisible) tryPlay(); else cyberVideo.pause();
         });
     }
-}
-
-const io = new IntersectionObserver(
-    entries => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                tryPlay();
-            } else {
-                cyberVideo.pause();
-                cyberVideoText.style.opacity = '0';
-            }
-        });
-    },
-    { threshold: 0.5 }
-);
-
-io.observe(cyberVideoSection);
-
-// Extra fallback for older browsers (no IO)
-if (!('IntersectionObserver' in window)) {
-    window.addEventListener('scroll', () => {
-        const r = cyberVideoSection.getBoundingClientRect();
-        const halfVisible = r.top < window.innerHeight * 0.5 && r.bottom > window.innerHeight * 0.5;
-        if (halfVisible) tryPlay(); else cyberVideo.pause();
-    });
-}
+})();
 
 // carousel js
 // Fixed carousel drag functionality - Enhanced for mobile touch
+(function () {
 const wrapper = document.getElementById('cybersterCarouselWrapper');
 const carousel = document.getElementById('cybersterCarousel');
+
+// Guard: skip if carousel elements are missing.
+if (!wrapper || !carousel) {
+    console.warn('Carousel elements not found. Skipping initialization.');
+    return;
+}
 
 let isDown = false;
 let startX = 0;
@@ -1277,6 +1441,7 @@ window.addEventListener('resize', onResize);
 
 // Initial cursor
 wrapper.style.cursor = 'grab';
+})();
 
 
 // tabs js
@@ -1292,10 +1457,13 @@ wrapper.style.cursor = 'grab';
         return;
     }
 
-    console.log('Car tabs initialized with', tabs.length, 'tabs');
-
     // ensure first image shows after load for a nicer fade
-    window.addEventListener('load', () => img.classList.add('cyc-show'));
+    // Guard: if load already fired, run immediately instead of waiting forever.
+    if (document.readyState === 'complete') {
+        img.classList.add('cyc-show');
+    } else {
+        window.addEventListener('load', () => img.classList.add('cyc-show'));
+    }
 
     function selectTab(btn, silent = false) {
         tabs.forEach(t => {
@@ -1334,7 +1502,7 @@ wrapper.style.cursor = 'grab';
     tabs.forEach(btn => btn.addEventListener('click', () => selectTab(btn)));
 
     // Keyboard arrow navigation
-    document.querySelector('.cyc-tabs').addEventListener('keydown', (e) => {
+    document.querySelector('.cyc-tabs')?.addEventListener('keydown', (e) => {
         const current = document.activeElement;
         if (!current.classList.contains('cyc-tab')) return;
 
