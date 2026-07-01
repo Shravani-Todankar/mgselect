@@ -8,9 +8,13 @@ const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)
 if (window.gsap && window.ScrollTrigger && window.Lenis && !prefersReducedMotion) {
     gsap.registerPlugin(ScrollTrigger);
 
-    const lenis = new Lenis({ lerp: 0.1, smoothWheel: true });
+    const lenis = new Lenis({ lerp: 0.1, smoothWheel: true, autoRaf: false });
+    // Keep ScrollTrigger in sync with Lenis's smoothed scroll position.
     lenis.on('scroll', ScrollTrigger.update);
-    gsap.ticker.add((time) => lenis.raf(time * 1000));
+    // Drive Lenis from its own rAF loop (canonical Lenis pattern — more reliable
+    // than gsap.ticker, which was not invoking lenis.raf in this setup).
+    function lenisRaf(time) { lenis.raf(time); requestAnimationFrame(lenisRaf); }
+    requestAnimationFrame(lenisRaf);
     gsap.ticker.lagSmoothing(0);
 
     // Expose so other IIFEs can use it if needed.
